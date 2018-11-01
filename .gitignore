@@ -1,0 +1,7 @@
+.DS_Store
+lib
+node_modules
+# using yarn, so ignore package-lock
+package-lock.json
+.sonarlint
+*.log

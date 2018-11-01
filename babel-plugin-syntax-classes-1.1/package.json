@@ -1,0 +1,21 @@
+{
+  "name": "@babel/plugin-syntax-classes-1.1",
+  "version": "0.0.1",
+  "description": "Allow parsing of classes 1.1 proposal",
+  "main": "lib/index.js",
+  "repository": "https://github.com/mbrowne/babel-plugin-proposal-classes-1.1",
+  "author": "Matt Browne",
+  "license": "ISC",
+  "keywords": [
+    "babel-plugin"
+  ],
+  "dependencies": {
+    "@babel/helper-plugin-utils": "^7.0.0"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0"
+  }
+}
