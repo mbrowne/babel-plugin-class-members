@@ -1,7 +1,7 @@
 class Demo {
-  let x = 1;
+  let x, y;
 
-  foo() {
-    this::x;
-  }
+  // foo() {
+  //   this::x;
+  // }
 }
