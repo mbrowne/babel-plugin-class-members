@@ -1,0 +1,13 @@
+{
+  "name": "classes-1.1-examples",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "license": "ISC",
+  "scripts": {
+    "build": "babel src/ -d lib/",
+    "watch": "yarn build -w"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.1.0"
+  }
+}
