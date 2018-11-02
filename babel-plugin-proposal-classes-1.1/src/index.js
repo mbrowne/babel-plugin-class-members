@@ -65,9 +65,9 @@ export default declare((api, options) => {
         let constructor;
         const props = [];
         const computedPaths = [];
-        // const instanceVarDeclarations = [];
         const privateNames = new Set();
         const body = path.get('body');
+        const instanceVarDecls = [];
 
         for (const path of body.get('body')) {
           const { computed, decorators } = path.node;
@@ -80,13 +80,17 @@ export default declare((api, options) => {
             );
           }
 
+          // @NB: using t.isInstanceVariableDeclaration() instead of path.isInstanceVariableDeclaration()
+          // since we're using a fork of @babel/types. If @babel/core can be made to use our custom fork
+          // of @babel/types then this workaround will no longer be necessary.
+          //
+          // if (path.isInstanceVariableDeclaration()) {
           if (t.isInstanceVariableDeclaration(path)) {
-            // instanceVarDeclarations.push(path);
-            const { kind, declarations } = path.node;
-            for (const declarator of path.get('declarations')) {
+            instanceVarDecls.push(path);
+            for (const instanceVar of path.get('declarations')) {
               const {
                 key: { name },
-              } = declarator;
+              } = instanceVar.node;
 
               if (privateNames.has(name)) {
                 throw path.buildCodeFrameError(
@@ -94,34 +98,35 @@ export default declare((api, options) => {
                 );
               }
               privateNames.add(name);
-              props.push(declarator);
+              props.push(instanceVar);
             }
           }
 
-          if (path.isProperty()) {
-            props.push(path);
-          } else if (path.isClassMethod({ kind: 'constructor' })) {
+          if (path.isClassMethod({ kind: 'constructor' })) {
             constructor = path;
           }
 
-          if (!props.length) return;
+          path.remove();
+        } // end for
 
-          let ref;
-          if (path.isClassExpression() || !path.node.id) {
-            nameFunction(path);
-            ref = path.scope.generateUidIdentifier('class');
-          } else {
-            // path.isClassDeclaration() && path.node.id
-            ref = path.node.id;
-          }
+        if (!props.length) return;
 
-          // Copied from https://github.com/mbrowne/babel/blob/master/packages/babel-plugin-proposal-class-properties/src/index.js
-          // Do we need this?
-          /*
-          const computedNodes = [];
-          const staticNodes = [];
-          const instanceBody = [];
-  
+        let ref;
+        if (path.isClassExpression() || !path.node.id) {
+          nameFunction(path);
+          ref = path.scope.generateUidIdentifier('class');
+        } else {
+          // path.isClassDeclaration() && path.node.id
+          ref = path.node.id;
+        }
+
+        const computedNodes = [];
+        const staticNodes = [];
+        const instanceBody = [];
+
+        // Copied from https://github.com/mbrowne/babel/blob/master/packages/babel-plugin-proposal-class-properties/src/index.js
+        // Do we need this?
+        /*  
           for (const computedPath of computedPaths) {
             computedPath.traverse(classFieldDefinitionEvaluationTDZVisitor, {
               classBinding:
@@ -146,62 +151,111 @@ export default declare((api, options) => {
           }
           */
 
-          // Transform private props before publics.
-          const privateMaps = [];
-          const privateMapInits = [];
-          for (const prop of props) {
-            // if (prop.isInstanceVariable()) {
-            if (t.isInstanceVariable(prop)) {
-              const inits = [];
-              privateMapInits.push(inits);
+        // Transform private props before publics.
+        const privateMaps = [];
+        const privateMapInits = [];
+        for (const prop of props) {
+          // if (prop.isInstanceVariable()) {
+          if (t.isInstanceVariable(prop)) {
+            const inits = [];
+            // @TODO exclude public (readonly) properties here
+            privateMapInits.push(inits);
 
-              privateMaps.push(
-                buildClassPrivateInstanceVar(
-                  t.thisExpression(),
-                  prop,
-                  inits,
-                  state
+            privateMaps.push(
+              buildClassPrivateInstanceVar(
+                path,
+                t.thisExpression(),
+                prop,
+                inits,
+                state
+              )
+            );
+          }
+        }
+        let p = 0;
+        for (const prop of props) {
+          if (prop.node.static) {
+            // @TODO static properties and static instance vars
+            //
+            // } else if (prop.isInstanceVariable()) {
+          } else if (t.isInstanceVariable(prop)) {
+            instanceBody.push(privateMaps[p]());
+            staticNodes.push(...privateMapInits[p]);
+            p++;
+          }
+        }
+
+        if (instanceBody.length) {
+          if (!constructor) {
+            const newConstructor = t.classMethod(
+              'constructor',
+              t.identifier('constructor'),
+              [],
+              t.blockStatement([])
+            );
+            if (isDerived) {
+              newConstructor.params = [t.restElement(t.identifier('args'))];
+              newConstructor.body.body.push(
+                t.expressionStatement(
+                  t.callExpression(t.super(), [
+                    t.spreadElement(t.identifier('args')),
+                  ])
                 )
               );
             }
+            [constructor] = body.unshiftContainer('body', newConstructor);
           }
 
-          // TEMP
-          // for (const declPath of instanceVarDeclarations) {
-          //   declPath.remove();
-          // }
-
-          if (path.isClassExpression()) {
-            path.scope.push({ id: ref });
-            path.replaceWith(
-              t.assignmentExpression('=', t.cloneNode(ref), path.node)
-            );
-          } else if (!path.node.id) {
-            // Anonymous class declaration
-            path.node.id = ref;
+          const state = { scope: constructor.scope };
+          for (const prop of props) {
+            if (prop.node.static) continue;
+            prop.traverse(referenceVisitor, state);
           }
 
-          // TEMP
-          // path.remove();
-          //
-        } // end for
+          if (isDerived) {
+            const bareSupers = [];
+            constructor.traverse(findBareSupers, bareSupers);
+            for (const bareSuper of bareSupers) {
+              bareSuper.insertAfter(instanceBody);
+            }
+          } else {
+            constructor.get('body').unshiftContainer('body', instanceBody);
+          }
+        }
+
+        if (computedNodes.length === 0 && staticNodes.length === 0) return;
+
+        if (path.isClassExpression()) {
+          path.scope.push({ id: ref });
+          path.replaceWith(
+            t.assignmentExpression('=', t.cloneNode(ref), path.node)
+          );
+        } else if (!path.node.id) {
+          // Anonymous class declaration
+          path.node.id = ref;
+        }
+
+        path.insertBefore(computedNodes);
+        path.insertAfter(staticNodes);
       }, // end Class visitor
     },
   };
 });
 
-function buildClassPrivateInstanceVar(ref, path, initNodes, state) {
-  const { parentPath, scope } = path;
+function buildClassPrivateInstanceVar(classPath, ref, path, initNodes, state) {
+  const { scope } = path;
   const { name } = path.node.key;
-  console.log('name: ', name);
+  const {
+    parent: { kind },
+  } = path;
 
   const map = scope.generateUidIdentifier(name);
   //TODO
-  // memberExpressionToFunctions(parentPath, privateNameVisitor, {
+  // memberExpressionToFunctions(classPath, privateNameVisitor, {
   //   name,
   //   map,
   //   file: state,
-  //   ...privateNameHandlerSpec,
+  //   ...privateNameHandler,
   // });
 
   initNodes.push(
@@ -216,12 +270,15 @@ function buildClassPrivateInstanceVar(ref, path, initNodes, state) {
         MAP.set(REF, {
           // configurable is always false for private elements
           // enumerable is always false for private elements
-          writable: true,
+          writable: WRITABLE,
           value: VALUE
         });
       `({
       MAP: map,
+      WRITABLE: kind === 'let' ? 'true' : 'false',
       REF: ref,
-      VALUE: path.node.value || scope.buildUndefinedNode(),
+      VALUE:
+        (path.node.init && path.node.init.extra.raw) ||
+        scope.buildUndefinedNode(),
     });
 }
