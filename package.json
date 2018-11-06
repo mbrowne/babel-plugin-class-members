@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "bootstrap": "lerna bootstrap --npm-client=yarn --use-workspaces",
+    "bootstrap": "npx lerna bootstrap --npm-client=yarn --use-workspaces",
     "build": "yarn build-syntax && yarn build-transform",
     "build-syntax": "babel --verbose packages/babel-plugin-syntax-classes-1.1/src/ -d packages/babel-plugin-syntax-classes-1.1/lib/",
     "build-transform": "babel --verbose packages/babel-plugin-proposal-classes-1.1/src/ -d packages/babel-plugin-proposal-classes-1.1/lib/"
