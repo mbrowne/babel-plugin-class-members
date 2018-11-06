@@ -4,10 +4,12 @@
   "main": "lib/index.js",
   "license": "ISC",
   "scripts": {
-    "build": "babel src/ -d lib/",
+    "build": "../../node_modules/.bin/babel src/ -d lib/",
     "watch": "yarn build -w"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-classes-1.1": "0.0.1",
+    "@babel/plugin-syntax-classes-1.1": "0.0.1",
     "@babel/preset-env": "^7.1.0"
   }
 }
