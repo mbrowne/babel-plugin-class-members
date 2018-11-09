@@ -7,7 +7,7 @@ import { environmentVisitor } from '@babel/helper-replace-supers';
 import memberExpressionToFunctions from '@babel/helper-member-expression-to-functions';
 import optimiseCall from '@babel/helper-optimise-call-expression';
 
-export default declare((api, options) => {
+export default declare((api /*, options*/) => {
   api.assertVersion(7);
 
   const findBareSupers = traverse.visitors.merge([
@@ -56,6 +56,150 @@ export default declare((api, options) => {
     environmentVisitor,
   ]);
 
+  // Traverses the class scope, handling private name references.  If an inner
+  // class redeclares the same private name, it will hand off traversal to the
+  // restricted visitor (which doesn't traverse the inner class's inner scope).
+  const privateNameVisitor = {
+    InstanceVariableName(path) {
+      const { name } = this;
+      const { node, parentPath } = path;
+
+      if (!parentPath.isMemberExpression({ property: node })) return;
+      if (node.id.name !== name) return;
+      this.handle(parentPath);
+    },
+
+    Class(path) {
+      const { name } = this;
+      const body = path.get('body.body');
+
+      for (const prop of body) {
+        // if (!prop.isInstanceVariableDeclaration()) continue;
+        if (!t.isInstanceVariableDeclaration(prop)) continue;
+        for (const instanceVar of prop.get('declarations')) {
+          if (instanceVar.node.key.name !== name) continue;
+
+          // This class redeclares the private name.
+          // So, we can only evaluate the things in the outer scope.
+          path.traverse(privateNameInnerVisitor, this);
+          path.skip();
+          break;
+        }
+      }
+    },
+  };
+
+  // Traverses the outer portion of a class, without touching the class's inner
+  // scope, for private names.
+  const privateNameInnerVisitor = traverse.visitors.merge([
+    {
+      InstanceVariableName: privateNameVisitor.InstanceVariableName,
+    },
+    environmentVisitor,
+  ]);
+
+  const privateNameHandler = {
+    memoise(member, count) {
+      const { scope } = member;
+      const { object } = member.node;
+
+      const memo = scope.maybeGenerateMemoised(object);
+      if (!memo) {
+        return;
+      }
+
+      this.memoiser.set(object, memo, count);
+    },
+
+    receiver(member) {
+      const { object } = member.node;
+
+      if (this.memoiser.has(object)) {
+        return t.cloneNode(this.memoiser.get(object));
+      }
+
+      return t.cloneNode(object);
+    },
+
+    get(member) {
+      const { map, file } = this;
+
+      // Use the existing helper from the class fields proposal.
+      // This will need to change if there are any semantic differences when
+      // accessing private variables.
+      return t.callExpression(file.addHelper('classPrivateFieldGet'), [
+        this.receiver(member),
+        t.cloneNode(map),
+      ]);
+    },
+
+    set(member, value) {
+      const { map, file } = this;
+
+      // Use the existing helper from the class fields proposal.
+      // This will need to change if there are any semantic differences when
+      // accessing private variables.
+      return t.callExpression(file.addHelper('classPrivateFieldSet'), [
+        this.receiver(member),
+        t.cloneNode(map),
+        value,
+      ]);
+    },
+
+    call(member, args) {
+      // The first access (the get) should do the memo assignment.
+      this.memoise(member, 1);
+
+      return optimiseCall(this.get(member), this.receiver(member), args);
+    },
+  };
+
+  function buildClassPrivateInstanceVar(
+    classPath,
+    ref,
+    path,
+    initNodes,
+    state
+  ) {
+    const { scope } = path;
+    const { name } = path.node.key;
+    const {
+      parent: { kind },
+    } = path;
+
+    const map = scope.generateUidIdentifier(name);
+    memberExpressionToFunctions(classPath, privateNameVisitor, {
+      name,
+      map,
+      file: state,
+      ...privateNameHandler,
+    });
+
+    initNodes.push(
+      template.statement`var MAP = new WeakMap();`({
+        MAP: map,
+      })
+    );
+
+    // Must be late evaluated in case it references another private instance variable.
+    return () =>
+      template.statement`
+          MAP.set(REF, {
+            // configurable is always false for private elements
+            // enumerable is always false for private elements
+            writable: WRITABLE,
+            value: VALUE
+          });
+        `({
+        MAP: map,
+        WRITABLE: kind === 'let' ? 'true' : 'false',
+        REF: ref,
+        VALUE:
+          (path.node.init && path.node.init.extra.raw) ||
+          scope.buildUndefinedNode(),
+      });
+  }
+
   return {
     inherits: syntaxClasses11,
 
@@ -100,13 +244,10 @@ export default declare((api, options) => {
               privateNames.add(name);
               props.push(instanceVar);
             }
-          }
-
-          if (path.isClassMethod({ kind: 'constructor' })) {
+            path.remove();
+          } else if (path.isClassMethod({ kind: 'constructor' })) {
             constructor = path;
           }
-
-          path.remove();
         } // end for
 
         if (!props.length) return;
@@ -158,7 +299,6 @@ export default declare((api, options) => {
           // if (prop.isInstanceVariable()) {
           if (t.isInstanceVariable(prop)) {
             const inits = [];
-            // @TODO exclude public (readonly) properties here
             privateMapInits.push(inits);
 
             privateMaps.push(
@@ -241,44 +381,3 @@ export default declare((api, options) => {
     },
   };
 });
-
-function buildClassPrivateInstanceVar(classPath, ref, path, initNodes, state) {
-  const { scope } = path;
-  const { name } = path.node.key;
-  const {
-    parent: { kind },
-  } = path;
-
-  const map = scope.generateUidIdentifier(name);
-  //TODO
-  // memberExpressionToFunctions(classPath, privateNameVisitor, {
-  //   name,
-  //   map,
-  //   file: state,
-  //   ...privateNameHandler,
-  // });
-
-  initNodes.push(
-    template.statement`var MAP = new WeakMap();`({
-      MAP: map,
-    })
-  );
-
-  // Must be late evaluated in case it references another private instance variable.
-  return () =>
-    template.statement`
-        MAP.set(REF, {
-          // configurable is always false for private elements
-          // enumerable is always false for private elements
-          writable: WRITABLE,
-          value: VALUE
-        });
-      `({
-      MAP: map,
-      WRITABLE: kind === 'let' ? 'true' : 'false',
-      REF: ref,
-      VALUE:
-        (path.node.init && path.node.init.extra.raw) ||
-        scope.buildUndefinedNode(),
-    });
-}
