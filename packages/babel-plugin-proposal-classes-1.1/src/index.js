@@ -6,6 +6,7 @@ import * as t from '@babel/types';
 import { environmentVisitor } from '@babel/helper-replace-supers';
 import memberExpressionToFunctions from '@babel/helper-member-expression-to-functions';
 import optimiseCall from '@babel/helper-optimise-call-expression';
+import './addHelpers';
 
 export default declare((api /*, options*/) => {
   api.assertVersion(7);
@@ -127,7 +128,7 @@ export default declare((api /*, options*/) => {
       // Use the existing helper from the class fields proposal.
       // This will need to change if there are any semantic differences when
       // accessing private variables.
-      return t.callExpression(file.addHelper('classPrivateFieldGet'), [
+      return t.callExpression(file.addHelper('classInstanceVariableGet'), [
         this.receiver(member),
         t.cloneNode(map),
       ]);
@@ -139,7 +140,7 @@ export default declare((api /*, options*/) => {
       // Use the existing helper from the class fields proposal.
       // This will need to change if there are any semantic differences when
       // accessing private variables.
-      return t.callExpression(file.addHelper('classPrivateFieldSet'), [
+      return t.callExpression(file.addHelper('classInstanceVariableSet'), [
         this.receiver(member),
         t.cloneNode(map),
         value,

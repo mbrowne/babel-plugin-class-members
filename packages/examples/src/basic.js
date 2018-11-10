@@ -1,15 +1,14 @@
 class Demo {
   let x, y;
-  const z = 1;
+  const z = 0;
 
   foo() {
-    console.log('hi');
-    this::x;
+    this::x = 1;
+    console.log(this::x, this::y);
+    console.log(this::z);
+    // TypeError
+    this::z = 1;
   }
 }
 
-// class Demo {
-//   foo() {
-//     console.log('hi');
-//   }
-// }
+new Demo().foo();
