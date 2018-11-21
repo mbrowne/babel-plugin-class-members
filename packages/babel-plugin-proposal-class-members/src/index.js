@@ -76,8 +76,7 @@ export default declare((api /*, options*/) => {
       const body = path.get('body.body');
 
       for (const prop of body) {
-        // if (!prop.isInstanceVariableDeclaration()) continue;
-        if (!t.isInstanceVariableDeclaration(prop)) continue;
+        if (!prop.isInstanceVariableDeclaration()) continue;
         for (const instanceVar of prop.get('declarations')) {
           if (instanceVar.node.key.name !== name) continue;
 
@@ -183,10 +182,6 @@ export default declare((api /*, options*/) => {
       })
     );
 
-    if (node.init && !node.init.extra) {
-      console.log('node.init: ', node.init);
-    }
-
     // Must be late evaluated in case it references another private instance variable.
     return () =>
       template.statement`
@@ -238,12 +233,7 @@ export default declare((api /*, options*/) => {
             );
           }
 
-          // @NB: using t.isInstanceVariableDeclaration() instead of path.isInstanceVariableDeclaration()
-          // since we're using a fork of @babel/types. If @babel/core can be made to use our custom fork
-          // of @babel/types then this workaround will no longer be necessary.
-          //
-          // if (path.isInstanceVariableDeclaration()) {
-          if (t.isInstanceVariableDeclaration(path)) {
+          if (path.isInstanceVariableDeclaration()) {
             instanceVarDecls.push(path);
             for (const instanceVar of path.get('declarations')) {
               const {
