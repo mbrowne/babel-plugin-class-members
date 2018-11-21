@@ -4,7 +4,7 @@
   "main": "lib/index.js",
   "license": "ISC",
   "scripts": {
-    "build": "babel src/ -d lib/",
+    "build": "babel --verbose src -d lib",
     "watch": "yarn build -w"
   },
   "devDependencies": {

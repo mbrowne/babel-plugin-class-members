@@ -163,7 +163,7 @@ export default declare((api /*, options*/) => {
     initNodes,
     state
   ) {
-    const { scope } = path;
+    const { node, scope } = path;
     const { name } = path.node.key;
     const {
       parent: { kind },
@@ -196,10 +196,17 @@ export default declare((api /*, options*/) => {
         MAP: map,
         WRITABLE: kind === 'let' ? 'true' : 'false',
         REF: ref,
-        VALUE:
-          (path.node.init && path.node.init.extra.raw) ||
-          scope.buildUndefinedNode(),
+        VALUE: (node.init && node.init.extra.raw) || scope.buildUndefinedNode(),
       });
+  }
+
+  function buildPublicNonStaticPropDescriptor(path) {
+    const { node, scope } = path;
+    return template.expression`
+      { configurable: true, enumerable: true, writable: true, value: VALUE }
+    `({
+      VALUE: (node.value && node.value.extra.raw) || scope.buildUndefinedNode(),
+    });
   }
 
   return {
@@ -209,11 +216,12 @@ export default declare((api /*, options*/) => {
       Class(path, state) {
         const isDerived = !!path.node.superClass;
         let constructor;
+        const instanceVars = [];
+        const instanceVarDecls = [];
         const props = [];
         const computedPaths = [];
         const privateNames = new Set();
         const body = path.get('body');
-        const instanceVarDecls = [];
 
         for (const path of body.get('body')) {
           const { computed, decorators } = path.node;
@@ -244,15 +252,21 @@ export default declare((api /*, options*/) => {
                 );
               }
               privateNames.add(name);
-              props.push(instanceVar);
+              instanceVars.push(instanceVar);
             }
             path.remove();
+          } else if (path.isClassProperty()) {
+            // props.push(path);
+            throw path.buildCodeFrameError(
+              'Public properties are not yet supported by this plugin',
+              Error
+            );
           } else if (path.isClassMethod({ kind: 'constructor' })) {
             constructor = path;
           }
         } // end for
 
-        if (!props.length) return;
+        if (!instanceVars.length) return;
 
         let ref;
         if (path.isClassExpression() || !path.node.id) {
@@ -297,31 +311,31 @@ export default declare((api /*, options*/) => {
         // Transform private props before publics.
         const privateMaps = [];
         const privateMapInits = [];
-        for (const prop of props) {
-          // if (prop.isInstanceVariable()) {
-          if (t.isInstanceVariable(prop)) {
-            const inits = [];
-            privateMapInits.push(inits);
+        for (const instanceVar of instanceVars) {
+          const inits = [];
+          privateMapInits.push(inits);
 
-            privateMaps.push(
-              buildClassPrivateInstanceVar(
-                path,
-                t.thisExpression(),
-                prop,
-                inits,
-                state
-              )
-            );
-          }
+          privateMaps.push(
+            buildClassPrivateInstanceVar(
+              path,
+              t.thisExpression(),
+              instanceVar,
+              inits,
+              state
+            )
+          );
         }
         let p = 0;
-        for (const prop of props) {
-          if (t.isInstanceVariable(prop)) {
+        for (const instanceVar of instanceVars) {
+          // @TODO
+          // A static class variable isn't an instance variable of course, but it was easier to just reuse
+          // the same type and add `static: true` to it in babel-parser. This should probably be refactored.
+          if (instanceVar.node.static) {
+            // @TODO
+          } else {
             instanceBody.push(privateMaps[p]());
             staticNodes.push(...privateMapInits[p]);
             p++;
-          } else if (prop.node.static) {
-            // @TODO static public properties and class vars
           }
         }
 
@@ -347,9 +361,9 @@ export default declare((api /*, options*/) => {
           }
 
           const state = { scope: constructor.scope };
-          for (const prop of props) {
-            if (prop.node.static) continue;
-            prop.traverse(referenceVisitor, state);
+          for (const instanceVar of instanceVars) {
+            if (instanceVar.node.static) continue;
+            instanceVar.traverse(referenceVisitor, state);
           }
 
           if (isDerived) {
@@ -375,8 +389,38 @@ export default declare((api /*, options*/) => {
           path.node.id = ref;
         }
 
+        // Work in progress
+        let protoAssignments;
+        /*
+        // Transform public properties
+        if (props.length) {
+          const propDefs = t.objectExpression(
+            props.map(prop => {
+              return t.objectProperty(
+                prop.node.key,
+                buildPublicNonStaticPropDescriptor(prop)
+              );
+            })
+          );
+
+          protoAssignments = template.statement`Object.defineProperties(CLAZZ.prototype, DEFINITIONS);`(
+            {
+              CLAZZ: path.node.id,
+              DEFINITIONS: propDefs,
+            }
+          );
+
+          for (const prop of props) {
+            prop.remove();
+          }
+        }
+        */
+
         path.insertBefore(computedNodes);
         path.insertAfter(staticNodes);
+        if (protoAssignments) {
+          path.insertAfter(protoAssignments);
+        }
       }, // end Class visitor
 
       InstanceVariableName(path) {

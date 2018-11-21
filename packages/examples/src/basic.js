@@ -1,7 +1,7 @@
 class Demo {
   let x, y;
   const z = 0;
-  foo = 0;
+  // aPublicProp;
 
   foo() {
     this::x = 1;
