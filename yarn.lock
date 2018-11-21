@@ -235,9 +235,9 @@
   resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.1.5.tgz#20b7d5e7e1811ba996f8a868962ea7dd2bfcd2fc"
   integrity sha512-WXKf5K5HT6X0kKiCOezJZFljsfxKV1FpU8Tf1A7ZpGvyd/Q4hlrJm2EwoH2onaUq3O4tLDp+4gk0hHPsMyxmOg==
 
-"@babel/parser@github:mbrowne/babel#babel-parser-v7.1.3-classes1.1-0.0.2-gitpkg":
-  version "7.1.3-classes1.1-0.0.2"
-  resolved "https://codeload.github.com/mbrowne/babel/tar.gz/3ecf9399c0f8ec732e72f94d388aefa27b2014e8"
+"@babel/parser@github:mbrowne/babel#babel-parser-v7.1.3-class-members-0.0.1-gitpkg":
+  version "7.1.3-class-members-0.0.1"
+  resolved "https://codeload.github.com/mbrowne/babel/tar.gz/2d3a3e86081ef92aed717f2f24fa9dbf64fee1a1"
 
 "@babel/plugin-proposal-async-generator-functions@^7.1.0":
   version "7.1.0"
@@ -247,6 +247,18 @@
     "@babel/helper-plugin-utils" "^7.0.0"
     "@babel/helper-remap-async-to-generator" "^7.1.0"
     "@babel/plugin-syntax-async-generators" "^7.0.0"
+
+"@babel/plugin-proposal-class-properties@^7.1.0":
+  version "7.1.0"
+  resolved "https://registry.yarnpkg.com/@babel/plugin-proposal-class-properties/-/plugin-proposal-class-properties-7.1.0.tgz#9af01856b1241db60ec8838d84691aa0bd1e8df4"
+  integrity sha512-/PCJWN+CKt5v1xcGn4vnuu13QDoV+P7NcICP44BoonAJoPSGwVkgrXihFIQGiEjjPlUDBIw1cM7wYFLARS2/hw==
+  dependencies:
+    "@babel/helper-function-name" "^7.1.0"
+    "@babel/helper-member-expression-to-functions" "^7.0.0"
+    "@babel/helper-optimise-call-expression" "^7.0.0"
+    "@babel/helper-plugin-utils" "^7.0.0"
+    "@babel/helper-replace-supers" "^7.1.0"
+    "@babel/plugin-syntax-class-properties" "^7.0.0"
 
 "@babel/plugin-proposal-json-strings@^7.0.0":
   version "7.0.0"
@@ -285,6 +297,13 @@
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/@babel/plugin-syntax-async-generators/-/plugin-syntax-async-generators-7.0.0.tgz#bf0891dcdbf59558359d0c626fdc9490e20bc13c"
   integrity sha512-im7ged00ddGKAjcZgewXmp1vxSZQQywuQXe2B1A7kajjZmDeY/ekMPmWr9zJgveSaQH0k7BcGrojQhcK06l0zA==
+  dependencies:
+    "@babel/helper-plugin-utils" "^7.0.0"
+
+"@babel/plugin-syntax-class-properties@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@babel/plugin-syntax-class-properties/-/plugin-syntax-class-properties-7.0.0.tgz#e051af5d300cbfbcec4a7476e37a803489881634"
+  integrity sha512-cR12g0Qzn4sgkjrbrzWy2GE7m9vMl/sFkqZ3gIpAQdrvPDnLM8180i+ANDFIXfjHo9aqp0ccJlQ0QNZcFUbf9w==
   dependencies:
     "@babel/helper-plugin-utils" "^7.0.0"
 
@@ -618,9 +637,9 @@
     globals "^11.1.0"
     lodash "^4.17.10"
 
-"@babel/types@^7.0.0", "@babel/types@^7.1.2", "@babel/types@^7.1.5", "@babel/types@github:mbrowne/babel#babel-types-v7.1.3-classes-1.1-0.0.2-gitpkg":
-  version "7.1.3-classes-1.1-0.0.2"
-  resolved "https://codeload.github.com/mbrowne/babel/tar.gz/2fc4776c1ec9d38b8009cff9f7a728d88d327e16"
+"@babel/types@^7.0.0", "@babel/types@^7.1.2", "@babel/types@^7.1.5", "@babel/types@github:mbrowne/babel#babel-types-v7.1.3-class-members-0.0.1-gitpkg":
+  version "7.1.3-class-members-0.0.1"
+  resolved "https://codeload.github.com/mbrowne/babel/tar.gz/07f9be3bc1401e40c1683b01956bdc7f446a6f42"
   dependencies:
     esutils "^2.0.2"
     lodash "^4.17.10"

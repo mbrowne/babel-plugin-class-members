@@ -17,8 +17,11 @@ module.exports = {
   ],
   plugins: [
     { parserOverride: (code, opts) => parse(code, opts) },
+    '@babel/proposal-class-members',
+
+    // plugin-proposal-class-members is independent;
+    // uncomment this only if you want to compare it with plugin-proposal-class-properties.
+    // Note that they are not guaranteed to play well together if both are enabled.
     // '@babel/plugin-proposal-class-properties',
-    // '@babel/plugin-syntax-classes-1.1',
-    '@babel/plugin-proposal-classes-1.1',
   ],
 };

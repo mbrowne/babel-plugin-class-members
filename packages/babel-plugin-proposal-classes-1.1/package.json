@@ -1,9 +1,0 @@
-{
-  "name": "@babel/plugin-proposal-classes-1.1",
-  "version": "0.0.1",
-  "description": "This plugin transforms class instance properties and other proposed features of classes 1.1",
-  "main": "lib/index.js",
-  "repository": "https://github.com/mbrowne/babel-plugin-proposal-classes-1.1",
-  "author": "Matt Browne",
-  "license": "ISC"
-}

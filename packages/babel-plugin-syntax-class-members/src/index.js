@@ -5,7 +5,7 @@ export default declare(api => {
 
   return {
     manipulateOptions(opts, parserOpts) {
-      parserOpts.plugins.push('classes1.1');
+      parserOpts.plugins.push('classMembers');
     },
   };
 });

@@ -1,14 +1,17 @@
 {
-  "name": "@babel/plugin-syntax-classes-1.1",
+  "name": "@babel/plugin-syntax-class-members",
   "version": "0.0.1",
-  "description": "Allow parsing of classes 1.1 proposal",
+  "description": "Allow parsing of class members proposal",
   "main": "lib/index.js",
-  "repository": "https://github.com/mbrowne/babel-plugin-proposal-classes-1.1",
+  "repository": "https://github.com/mbrowne/babel-plugin-proposal-class-members",
   "author": "Matt Browne",
   "license": "ISC",
   "keywords": [
     "babel-plugin"
   ],
+  "scripts": {
+    "build": "babel --verbose src -d lib"
+  },
   "dependencies": {
     "@babel/helper-plugin-utils": "^7.0.0"
   },

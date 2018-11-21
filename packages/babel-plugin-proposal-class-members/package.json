@@ -1,0 +1,12 @@
+{
+  "name": "@babel/plugin-proposal-class-members",
+  "version": "0.0.1",
+  "description": "This plugin transforms class instance properties and other proposed features of the class members proposal",
+  "main": "lib/index.js",
+  "repository": "https://github.com/mbrowne/babel-plugin-proposal-class-members",
+  "author": "Matt Browne",
+  "license": "ISC",
+  "scripts": {
+    "build": "babel --verbose src -d lib"
+  }
+}

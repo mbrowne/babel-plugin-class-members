@@ -1,6 +1,7 @@
 class Demo {
   let x, y;
   const z = 0;
+  foo = 0;
 
   foo() {
     this::x = 1;
@@ -12,3 +13,5 @@ class Demo {
 }
 
 new Demo().foo();
+
+export default Demo

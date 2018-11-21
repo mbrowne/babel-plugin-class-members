@@ -1,6 +1,6 @@
 import { declare } from '@babel/helper-plugin-utils';
 import nameFunction from '@babel/helper-function-name';
-import syntaxClasses11 from '@babel/plugin-syntax-classes-1.1';
+import syntaxClassMembers from '@babel/plugin-syntax-class-members';
 import { template, traverse } from '@babel/core';
 import * as t from '@babel/types';
 import { environmentVisitor } from '@babel/helper-replace-supers';
@@ -37,25 +37,26 @@ export default declare((api /*, options*/) => {
   };
 
   // temporal dead zone visitor
-  const classVariableDefinitionEvaluationTDZVisitor = traverse.visitors.merge([
-    {
-      ReferencedIdentifier(path) {
-        if (
-          this.classBinding &&
-          this.classBinding === path.scope.getBinding(path.node.name)
-        ) {
-          const classNameTDZError = this.file.addHelper('classNameTDZError');
-          const throwNode = t.callExpression(classNameTDZError, [
-            t.stringLiteral(path.node.name),
-          ]);
+  // might not be needed
+  // const classVariableDefinitionEvaluationTDZVisitor = traverse.visitors.merge([
+  //   {
+  //     ReferencedIdentifier(path) {
+  //       if (
+  //         this.classBinding &&
+  //         this.classBinding === path.scope.getBinding(path.node.name)
+  //       ) {
+  //         const classNameTDZError = this.file.addHelper('classNameTDZError');
+  //         const throwNode = t.callExpression(classNameTDZError, [
+  //           t.stringLiteral(path.node.name),
+  //         ]);
 
-          path.replaceWith(t.sequenceExpression([throwNode, path.node]));
-          path.skip();
-        }
-      },
-    },
-    environmentVisitor,
-  ]);
+  //         path.replaceWith(t.sequenceExpression([throwNode, path.node]));
+  //         path.skip();
+  //       }
+  //     },
+  //   },
+  //   environmentVisitor,
+  // ]);
 
   // Traverses the class scope, handling private name references.  If an inner
   // class redeclares the same private name, it will hand off traversal to the
@@ -202,7 +203,7 @@ export default declare((api /*, options*/) => {
   }
 
   return {
-    inherits: syntaxClasses11,
+    inherits: syntaxClassMembers,
 
     visitor: {
       Class(path, state) {
@@ -315,14 +316,12 @@ export default declare((api /*, options*/) => {
         }
         let p = 0;
         for (const prop of props) {
-          if (prop.node.static) {
-            // @TODO static properties and static instance vars
-            //
-            // } else if (prop.isInstanceVariable()) {
-          } else if (t.isInstanceVariable(prop)) {
+          if (t.isInstanceVariable(prop)) {
             instanceBody.push(privateMaps[p]());
             staticNodes.push(...privateMapInits[p]);
             p++;
+          } else if (prop.node.static) {
+            // @TODO static public properties and class vars
           }
         }
 
@@ -379,6 +378,15 @@ export default declare((api /*, options*/) => {
         path.insertBefore(computedNodes);
         path.insertAfter(staticNodes);
       }, // end Class visitor
+
+      InstanceVariableName(path) {
+        throw path.buildCodeFrameError(
+          `Unknown InstanceVariableName "${path.node.id.name}"`
+          // @FIXME not working for some reason
+          // (maybe official version of @babel/types being used somewhere instead of our fork?)
+          // `Unknown InstanceVariableName "${path}"`
+        );
+      },
     },
   };
 });
