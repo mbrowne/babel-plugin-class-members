@@ -183,6 +183,10 @@ export default declare((api /*, options*/) => {
       })
     );
 
+    if (node.init && !node.init.extra) {
+      console.log('node.init: ', node.init);
+    }
+
     // Must be late evaluated in case it references another private instance variable.
     return () =>
       template.statement`
@@ -196,7 +200,7 @@ export default declare((api /*, options*/) => {
         MAP: map,
         WRITABLE: kind === 'let' ? 'true' : 'false',
         REF: ref,
-        VALUE: (node.init && node.init.extra.raw) || scope.buildUndefinedNode(),
+        VALUE: node.init || scope.buildUndefinedNode(),
       });
   }
 
@@ -205,7 +209,7 @@ export default declare((api /*, options*/) => {
     return template.expression`
       { configurable: true, enumerable: true, writable: true, value: VALUE }
     `({
-      VALUE: (node.value && node.value.extra.raw) || scope.buildUndefinedNode(),
+      VALUE: node.value || scope.buildUndefinedNode(),
     });
   }
 
