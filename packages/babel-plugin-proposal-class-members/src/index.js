@@ -216,10 +216,10 @@ export default declare((api /*, options*/) => {
         const isDerived = !!path.node.superClass;
         let constructor;
         const instanceVars = [];
-        const instanceVarDecls = [];
+        const classVarDecls = [];
         const props = [];
         const computedPaths = [];
-        const privateNames = new Set();
+        const instanceVarNames = new Set();
         const body = path.get('body');
 
         for (const path of body.get('body')) {
@@ -234,21 +234,27 @@ export default declare((api /*, options*/) => {
           }
 
           if (path.isInstanceVariableDeclaration()) {
-            instanceVarDecls.push(path);
             for (const instanceVar of path.get('declarations')) {
               const {
                 key: { name },
               } = instanceVar.node;
 
-              if (privateNames.has(name)) {
-                throw path.buildCodeFrameError(
-                  'Duplicate class instance variable'
-                );
+              if (instanceVarNames.has(name)) {
+                throw path.buildCodeFrameError('Duplicate instance variable');
               }
-              privateNames.add(name);
+              instanceVarNames.add(name);
               instanceVars.push(instanceVar);
             }
             path.remove();
+          } else if (
+            // private static variable declaration
+            path.isClassVariableDeclaration()
+          ) {
+            // @NB: We don't need to check for duplicate variable name here because Babel will catch it
+            // automatically since we're currently using regular VariableDeclarators for class properties.
+            // If we need to introduce a separate ClassVariableDeclarator type for some reason, then this
+            // should check for duplicate names as with instance variables.
+            classVarDecls.push(path);
           } else if (path.isClassProperty()) {
             // props.push(path);
             throw path.buildCodeFrameError(
@@ -260,7 +266,9 @@ export default declare((api /*, options*/) => {
           }
         } // end for
 
-        if (!instanceVars.length) return;
+        if (!instanceVars.length && !classVarDecls.length && !props.length) {
+          return;
+        }
 
         let ref;
         if (path.isClassExpression() || !path.node.id) {
@@ -272,7 +280,8 @@ export default declare((api /*, options*/) => {
         }
 
         const computedNodes = [];
-        const staticNodes = [];
+        const preClassStaticNodes = [];
+        const postClassStaticNodes = [];
         const instanceBody = [];
 
         // Copied from https://github.com/mbrowne/babel/blob/master/packages/babel-plugin-proposal-class-properties/src/index.js
@@ -302,7 +311,7 @@ export default declare((api /*, options*/) => {
           }
           */
 
-        // Transform private props before publics.
+        // Transform private instance/class variables before publics.
         const privateMaps = [];
         const privateMapInits = [];
         for (const instanceVar of instanceVars) {
@@ -319,18 +328,10 @@ export default declare((api /*, options*/) => {
             )
           );
         }
-        let p = 0;
-        for (const instanceVar of instanceVars) {
-          // @TODO
-          // A static class variable isn't an instance variable of course, but it was easier to just reuse
-          // the same type and add `static: true` to it in babel-parser. This should probably be refactored.
-          if (instanceVar.node.static) {
-            // @TODO
-          } else {
-            instanceBody.push(privateMaps[p]());
-            staticNodes.push(...privateMapInits[p]);
-            p++;
-          }
+
+        for (let i = 0; i < instanceVars.length; i++) {
+          instanceBody.push(privateMaps[i]());
+          postClassStaticNodes.push(...privateMapInits[i]);
         }
 
         if (instanceBody.length) {
@@ -356,7 +357,6 @@ export default declare((api /*, options*/) => {
 
           const state = { scope: constructor.scope };
           for (const instanceVar of instanceVars) {
-            if (instanceVar.node.static) continue;
             instanceVar.traverse(referenceVisitor, state);
           }
 
@@ -371,16 +371,13 @@ export default declare((api /*, options*/) => {
           }
         }
 
-        if (computedNodes.length === 0 && staticNodes.length === 0) return;
-
-        if (path.isClassExpression()) {
-          path.scope.push({ id: ref });
-          path.replaceWith(
-            t.assignmentExpression('=', t.cloneNode(ref), path.node)
+        // Transform (static) class variables
+        for (const decl of classVarDecls) {
+          const { node } = decl;
+          preClassStaticNodes.push(
+            t.variableDeclaration(node.kind, node.declarations)
           );
-        } else if (!path.node.id) {
-          // Anonymous class declaration
-          path.node.id = ref;
+          decl.remove();
         }
 
         // Work in progress
@@ -397,9 +394,9 @@ export default declare((api /*, options*/) => {
             })
           );
 
-          protoAssignments = template.statement`Object.defineProperties(CLAZZ.prototype, DEFINITIONS);`(
+          protoAssignments = template.statement`Object.defineProperties(CLASSNAME.prototype, DEFINITIONS);`(
             {
-              CLAZZ: path.node.id,
+              CLASSNAME: path.node.id,
               DEFINITIONS: propDefs,
             }
           );
@@ -410,12 +407,43 @@ export default declare((api /*, options*/) => {
         }
         */
 
-        path.insertBefore(computedNodes);
-        path.insertAfter(staticNodes);
-        if (protoAssignments) {
-          path.insertAfter(protoAssignments);
+        if (
+          !protoAssignments &&
+          !computedNodes.length &&
+          !preClassStaticNodes.length &&
+          !postClassStaticNodes
+        ) {
+          return;
         }
-      }, // end Class visitor
+
+        if (path.isClassExpression()) {
+          path.scope.push({ id: ref });
+          path.replaceWith(
+            t.assignmentExpression('=', t.cloneNode(ref), path.node)
+          );
+        } else if (!path.node.id) {
+          // Anonymous class declaration
+          path.node.id = ref;
+        }
+
+        const classClosure = template.statement`
+          const CLASSNAME = (() => {
+            PRECLASS
+            CLASS
+            POSTCLASS
+            return CLASSNAME
+          })();
+     `({
+          CLASSNAME: path.node.id,
+          PRECLASS: preClassStaticNodes.concat(computedNodes),
+          CLASS: path.node,
+          POSTCLASS: (protoAssignments ? [protoAssignments] : []).concat(
+            postClassStaticNodes
+          ),
+        });
+
+        path.replaceWith(classClosure);
+      }, // end class visitor
 
       InstanceVariableName(path) {
         throw path.buildCodeFrameError(

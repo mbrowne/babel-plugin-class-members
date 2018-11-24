@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "resolutions": {
-    "**/@babel/types": "github:mbrowne/babel#babel-types-v7.1.3-class-members-0.0.1-gitpkg"
+    "**/@babel/types": "github:mbrowne/babel#babel-types-v7.1.3-class-members-0.0.2-gitpkg"
   },
   "scripts": {
     "bootstrap": "npx lerna bootstrap --npm-client=yarn --use-workspaces",
@@ -20,7 +20,7 @@
     "@babel/helper-optimise-call-expression": "^7.0.0",
     "@babel/helper-plugin-utils": "^7.0.0",
     "@babel/helper-replace-supers": "^7.1.0",
-    "@babel/parser": "github:mbrowne/babel#babel-parser-v7.1.3-class-members-0.0.1-gitpkg"
+    "@babel/parser": "github:mbrowne/babel#babel-parser-v7.1.3-class-members-0.0.2-gitpkg"
   },
   "devDependencies": {
     "@babel/cli": "^7.1.2",
