@@ -78,7 +78,7 @@ export default declare((api /*, options*/) => {
       for (const prop of body) {
         if (!prop.isInstanceVariableDeclaration()) continue;
         for (const instanceVar of prop.get('declarations')) {
-          if (instanceVar.node.key.name !== name) continue;
+          if (instanceVar.node.id.name !== name) continue;
 
           // This class redeclares the private name.
           // So, we can only evaluate the things in the outer scope.
@@ -163,7 +163,7 @@ export default declare((api /*, options*/) => {
     state
   ) {
     const { node, scope } = path;
-    const { name } = path.node.key;
+    const { name } = path.node.id;
     const {
       parent: { kind },
     } = path;
@@ -236,7 +236,7 @@ export default declare((api /*, options*/) => {
           if (path.isInstanceVariableDeclaration()) {
             for (const instanceVar of path.get('declarations')) {
               const {
-                key: { name },
+                id: { name },
               } = instanceVar.node;
 
               if (instanceVarNames.has(name)) {
