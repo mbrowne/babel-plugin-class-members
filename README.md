@@ -2,10 +2,10 @@
 
 This repo contains two experimental plugins enabling support for the [class members](https://github.com/rdking/proposal-class-members) proposal:
 
-- babel-plugin-syntax-class-members (syntax plugin)
-- babel-plugin-proposal-class-members (transform plugin)
+- @babel/plugin-syntax-class-members (syntax plugin)
+- @babel/plugin-proposal-class-members (transform plugin)
 
-> IMPORTANT NOTE: The class members proposal is still evolving, and the syntax supported by these plugins might not always match what is documented at https://github.com/rdking/proposal-class-members.
+> IMPORTANT NOTE: The class members proposal is still evolving, and the syntax supported by these plugins might not always match what is specified at https://github.com/rdking/proposal-class-members.
 
 ## Building
 
