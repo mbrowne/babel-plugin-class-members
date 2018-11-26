@@ -1,7 +1,6 @@
 {
   "name": "class-members-examples",
   "version": "0.0.1",
-  "main": "lib/index.js",
   "license": "ISC",
   "scripts": {
     "build": "babel --verbose src -d lib",
